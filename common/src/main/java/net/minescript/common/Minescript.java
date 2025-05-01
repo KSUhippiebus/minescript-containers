@@ -2601,10 +2601,32 @@ public class Minescript {
         {
           args.expectSize(1);
           int slot = args.getStrictInt(0);
-          var inventory = player.getInventory();
-          var connection = minecraft.getConnection();
-          connection.send(new ServerboundPickItemPacket(slot));
-          return Optional.of(new JsonPrimitive(inventory.selected));
+          Screen screen = minecraft.screen;
+          if (screen instanceof AbstractContainerScreen<?> handledScreen) {
+            AbstractContainerMenu menu = handledScreen.getMenu();
+            int syncId = menu.containerId;
+            int slotId = slot; // the slot you want to quick-move
+            Slot slot = menu.slots.get(slotId);
+  
+            if (slot != null && slot.hasItem()) {
+                ItemStack clickedStack = slot.getItem();
+    
+                // Send ClickSlot packet with QUICK_MOVE type (simulates shift-click)
+                client.getConnection().send(new ServerboundContainerClickPacket(
+                    syncId,
+                    menu.getStateId(),
+                    slotId,
+                    ClickType.QUICK_MOVE,
+                    clickedStack,
+                    menu.getDragSlots()
+                ));
+            }
+          } else {
+            var inventory = player.getInventory();
+            var connection = minecraft.getConnection();
+            connection.send(new ServerboundPickItemPacket(slot));
+            return Optional.of(new JsonPrimitive(inventory.selected));
+          }
         }
 
       case "player_inventory_select_slot":
